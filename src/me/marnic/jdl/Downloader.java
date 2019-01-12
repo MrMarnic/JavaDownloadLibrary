@@ -2,6 +2,7 @@ package me.marnic.jdl;
 
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -66,6 +67,35 @@ public class Downloader {
             e.printStackTrace();
             downloadHandler.onDownloadError();
         }
+    }
+
+    public Object downloadObject(String urlStr) {
+
+        try {
+            URL url = new URL(urlStr);
+            URLConnection con = url.openConnection();
+            downloadLength = con.getContentLength();
+
+            ObjectInputStream in = new ObjectInputStream(con.getInputStream());
+
+            byte[] data = new byte[1024];
+            int length;
+
+            downloadHandler.onDownloadStart();
+
+            while ((length = in.read(data,0,1024))!=-1)  {
+                downloadedBytes+=length;
+            }
+
+            in.close();
+
+            downloadHandler.onDownloadFinish();
+            return in.readObject();
+        }catch (Exception e) {
+            e.printStackTrace();
+            downloadHandler.onDownloadError();
+        }
+        return null;
     }
 
     public void setDownloadHandler(DownloadHandler downloadHandler) {
