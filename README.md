@@ -11,7 +11,7 @@ Features:
 - Convert file sizes (MB;GB;KB...)
 
 # Download:
-
+https://github.com/MrMarnic/JDL/releases/download/1.0/JDL.jar
 
 
 # Getting Started:
