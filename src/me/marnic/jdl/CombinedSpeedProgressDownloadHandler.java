@@ -33,7 +33,7 @@ public abstract class CombinedSpeedProgressDownloadHandler extends DownloadHandl
                 onDownloadProgress(downloader.downloadedBytes,downloader.downloadLength,percent);
                 onDownloadSpeedProgress(downloader.downloadedBytes,downloader.downloadLength,percent,deltaDownload);
             }
-        },0,1000);
+        },0,250);
     }
 
     public void onDownloadTickPerSec(int bytesPerSec) {}
