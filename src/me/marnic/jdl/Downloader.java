@@ -43,6 +43,30 @@ public class Downloader {
         }
     }
 
+    public Downloader(boolean createDefaultHandler, String cookiesLocation) {
+        if (createDefaultHandler) {
+            downloadHandler = new DownloadHandler(this) {
+                @Override
+                public void onDownloadStart() {
+
+                }
+
+                @Override
+                public void onDownloadFinish() {
+
+                }
+
+                @Override
+                public void onDownloadError() {
+
+                }
+            };
+        }
+        this.bUseCookies = true;
+        this.cookiesLocation = cookiesLocation;
+        this.cookiesMap = readCookies();
+    }
+
     public Downloader(boolean createDefaultHandler, String cookiesLocation, String domainFilter) {
         if (createDefaultHandler) {
             downloadHandler = new DownloadHandler(this) {
@@ -79,10 +103,11 @@ public class Downloader {
             String data;
             List<String> partList;
             HashMap<String, String> result = new HashMap<>();
+            boolean bHasDomainFilter = (domainFilter != null) && !domainFilter.isEmpty();
             while (myReader.hasNextLine()) {
                 data = myReader.nextLine();
                 // skip comment and empty lines
-                if (!data.contains("#") && !data.trim().isEmpty() && data.contains(this.domainFilter)) {
+                if (!data.contains("#") && !data.trim().isEmpty() && (bHasDomainFilter ? data.contains(this.domainFilter) : true)) {
                     partList = Arrays.asList(data.split("\\s+")); // split line as array by space
                     result.put(partList.get(5), partList.get(6)); // name and key columns in netscape format cookies
                 }
@@ -122,7 +147,7 @@ public class Downloader {
         return connection;
     }
 
-    public String getServerFileName(String urlStr) {
+    public String getServerFileName(String urlStr) throws UnsupportedEncodingException {
         HttpURLConnection con = null;
         try {
             URL url = new URL(urlStr);
@@ -131,6 +156,7 @@ public class Downloader {
             } else {
                 con = (HttpURLConnection) url.openConnection();
             }
+            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
             con.connect();
 
             if (con.getResponseCode() != HttpURLConnection.HTTP_OK) {
@@ -143,18 +169,38 @@ public class Downloader {
             if (con != null) con.disconnect();
         }
 
-        String decodedURL = URLDecoder.decode(con.getURL().toString(), StandardCharsets.UTF_8); // for Chinese
+        String decodedURL = URLDecoder.decode(con.getURL().toString(), String.valueOf(StandardCharsets.UTF_8)); // for Chinese
         // characters
         return new File(decodedURL).getName();
     }
 
-    public void setbIsCancelled(boolean bIsCancelled) {
-        this.bIsCancelled = bIsCancelled;
+    public void cancelDownload() {
+        bIsCancelled = true;
     }
 
     private void resetValues() {
         downloadedBytes = 0;
         downloadLength = 0;
+    }
+
+    public Integer getDownloadLength(String urlStr) {
+        try {
+            URL url = new URL(urlStr);
+            HttpURLConnection con;
+            if (bUseCookies) {
+                con = (HttpURLConnection) setupConnectionWithCookies(cookiesMap, urlStr);
+            } else {
+                con = (HttpURLConnection) url.openConnection();
+            }
+
+            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
+            con.connect();
+            downloadLength = con.getContentLength();
+            return downloadLength;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public void downloadFileToLocation(String urlStr, String pathToDownload) {
@@ -168,6 +214,7 @@ public class Downloader {
                 con = (HttpURLConnection) url.openConnection();
             }
 
+            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
             con.connect();
             downloadLength = con.getContentLength();
 
@@ -209,6 +256,7 @@ public class Downloader {
                 con = (HttpURLConnection) url.openConnection();
             }
 
+            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
             con.connect();
             downloadLength = con.getContentLength();
 

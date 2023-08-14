@@ -29,7 +29,7 @@ public abstract class DownloadSpeedDownloadHandler extends DownloadHandler{
                 onDownloadTickPerSec(deltaDownload);
                 lastDownloadSize = downloader.downloadedBytes;
             }
-        },0,1000);
+        },0,250);
     }
 
     public abstract void onDownloadTickPerSec(int bytesPerSec);
