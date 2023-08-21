@@ -8,9 +8,10 @@ Features:
 - Check download progress
 - Directly cast download objects
 - Download Text
-- Convert file sizes (MB, GB, KB...)
-- Use (Netscape format) cookies to download files that require login
+- Use (Netscape format) cookies to download files that require login, optionally filter which domain name to load (to check if the cookie file contains the domain name that the programme expects)
+- Able to cancel during download
 - Get JSON (e.g. from a website API) as String objects
+- Convert file sizes from bytes to KB, MB, GB dynamically
 
 # Download:
 https://github.com/MrMarnic/JavaDownloadLibrary/releases/
