@@ -25,7 +25,7 @@ public abstract class DownloadProgressDownloadHandler extends DownloadHandler{
             public void run() {
                 onDownloadProgress(downloader.downloadedBytes,downloader.downloadLength,(int)(((double)downloader.downloadedBytes/downloader.downloadLength)*100));
             }
-        },0,1000);
+        },0,250);
     }
 
     public abstract void onDownloadProgress(int downloaded,int maxDownload,int percent);
