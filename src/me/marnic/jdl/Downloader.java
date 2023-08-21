@@ -17,10 +17,12 @@ public class Downloader {
     int downloadedBytes;
     int downloadLength;
     private HashMap<String, String> cookiesMap;
-    private Boolean bUseCookies = false;
-    private String cookiesLocation;
+    private boolean bUseCookies = false;
+    private boolean bUseDomainFilter = false;
     private String domainFilter;
     private boolean bIsCancelled = false;
+    private boolean bUseCustomUserAgentString = false;
+    private String customUserAgentString;
 
     public Downloader(boolean createDefaultHandler) {
         if (createDefaultHandler) {
@@ -43,79 +45,51 @@ public class Downloader {
         }
     }
 
-    public Downloader(boolean createDefaultHandler, String cookiesLocation) {
-        if (createDefaultHandler) {
-            downloadHandler = new DownloadHandler(this) {
-                @Override
-                public void onDownloadStart() {
-
-                }
-
-                @Override
-                public void onDownloadFinish() {
-
-                }
-
-                @Override
-                public void onDownloadError() {
-
-                }
-            };
-        }
+    public void setCookies(File cookiesFile) {
         this.bUseCookies = true;
-        this.cookiesLocation = cookiesLocation;
-        this.cookiesMap = readCookies();
+        this.cookiesMap = readCookies(cookiesFile);
     }
 
-    public Downloader(boolean createDefaultHandler, String cookiesLocation, String domainFilter) {
-        if (createDefaultHandler) {
-            downloadHandler = new DownloadHandler(this) {
-                @Override
-                public void onDownloadStart() {
-
-                }
-
-                @Override
-                public void onDownloadFinish() {
-
-                }
-
-                @Override
-                public void onDownloadError() {
-
-                }
-            };
-        }
-        this.bUseCookies = true;
-        this.cookiesLocation = cookiesLocation;
+    public void setDomainFilter(String domainFilter) {
+        this.bUseDomainFilter = true;
         this.domainFilter = domainFilter;
-        this.cookiesMap = readCookies();
     }
 
+    public void setCustomUserAgentString(String userAgentString) {
+        this.bUseCustomUserAgentString = true;
+        this.customUserAgentString = userAgentString;
+    }
+
+    // get HashMap formatted cookies that have finished reading from a txt file
     public HashMap<String, String> getCookiesMap() {
         return cookiesMap;
     }
 
-    public HashMap<String, String> readCookies() {
+    // read HashMap formatted cookies from txt file for use with libraries like jsoup
+    public HashMap<String, String> readCookies(File cookiesFile) {
         try {
-            File myObj = new File(this.cookiesLocation);
-            Scanner myReader = new Scanner(myObj);
+            Scanner myReader = new Scanner(cookiesFile);
             String data;
             List<String> partList;
             HashMap<String, String> result = new HashMap<>();
-            boolean bHasDomainFilter = (domainFilter != null) && !domainFilter.isEmpty();
             while (myReader.hasNextLine()) {
                 data = myReader.nextLine();
                 // skip comment and empty lines
-                if (!data.contains("#") && !data.trim().isEmpty() && (bHasDomainFilter ? data.contains(this.domainFilter) : true)) {
+                if (!data.contains("#") && !data.trim().isEmpty()) {
                     partList = Arrays.asList(data.split("\\s+")); // split line as array by space
-                    result.put(partList.get(5), partList.get(6)); // name and key columns in netscape format cookies
+                    if (bUseDomainFilter) {
+                        if (partList.get(0).contains(this.domainFilter)) {
+                            result.put(partList.get(5), partList.get(6)); // name and value fields in Netscape format cookies
+                        }
+                    } else {
+                        result.put(partList.get(5), partList.get(6));
+                    }
                 }
             }
             myReader.close();
             return result;
         } catch (FileNotFoundException e) {
-            System.out.println("Cookies not found");
+            System.err.println("Cookies not found");
             e.printStackTrace();
         }
         return null;
@@ -127,13 +101,13 @@ public class Downloader {
         try {
             url = new URL(urlStr);
         } catch (MalformedURLException e) {
-            System.out.println("An error occurred.");
+            System.err.println("An error occurred.");
             e.printStackTrace();
         }
         try {
             connection = url.openConnection();
         } catch (IOException e) {
-            System.out.println("An error occurred.");
+            System.err.println("An error occurred.");
             e.printStackTrace();
         }
         String cookies = "";
@@ -156,22 +130,27 @@ public class Downloader {
             } else {
                 con = (HttpURLConnection) url.openConnection();
             }
-            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
+            if (bUseCustomUserAgentString) {
+                con.addRequestProperty("User-Agent", customUserAgentString);
+            }
             con.connect();
 
             if (con.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 return "Server returned HTTP " + con.getResponseCode() + " " + con.getResponseMessage();
             }
         } catch (Exception e) {
-            System.out.println("An error occurred.");
+            System.err.println("An error occurred.");
             return e.toString();
         } finally {
             if (con != null) con.disconnect();
         }
 
-        String decodedURL = URLDecoder.decode(con.getURL().toString(), String.valueOf(StandardCharsets.UTF_8)); // for Chinese
-        // characters
+        String decodedURL = URLDecoder.decode(con.getURL().toString(), String.valueOf(StandardCharsets.UTF_8)); // for Chinese characters
         return new File(decodedURL).getName();
+    }
+
+    public void setbIsCancelled(boolean bIsCancelled) {
+        this.bIsCancelled = bIsCancelled;
     }
 
     public void cancelDownload() {
@@ -193,18 +172,28 @@ public class Downloader {
                 con = (HttpURLConnection) url.openConnection();
             }
 
-            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
+            if (bUseCustomUserAgentString) {
+                con.addRequestProperty("User-Agent", customUserAgentString);
+            }
             con.connect();
             downloadLength = con.getContentLength();
             return downloadLength;
         } catch (Exception e) {
+            System.err.println("An error occurred.");
             e.printStackTrace();
         }
         return null;
     }
 
     public void downloadFileToLocation(String urlStr, String pathToDownload) {
+        handleDownloadFileToLocation(urlStr, pathToDownload, null);
+    }
 
+    public void downloadFileToLocation(String urlStr, String pathToDownload, String customFileName) {
+        handleDownloadFileToLocation(urlStr, pathToDownload, customFileName);
+    }
+
+    private void handleDownloadFileToLocation(String urlStr, String pathToDownload, String customFileName) {
         try {
             URL url = new URL(urlStr);
             HttpURLConnection con;
@@ -214,12 +203,19 @@ public class Downloader {
                 con = (HttpURLConnection) url.openConnection();
             }
 
-            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
+            if (bUseCustomUserAgentString) {
+                con.addRequestProperty("User-Agent", customUserAgentString);
+            }
             con.connect();
             downloadLength = con.getContentLength();
 
             InputStream in = con.getInputStream();
-            String fileName = getServerFileName(urlStr);
+            String fileName;
+            if (customFileName != null) {
+                fileName = customFileName;
+            } else {
+                fileName = getServerFileName(urlStr);
+            }
             Files.createDirectories(Paths.get(pathToDownload));
             FileOutputStream out = new FileOutputStream(pathToDownload + fileName);
 
@@ -237,10 +233,10 @@ public class Downloader {
             in.close();
             out.close();
 
-            resetValues(); // for repeated use of the same downloader object, in order to get correct download speed
-            // values
+            resetValues(); // for repeated use of the same downloader object, in order to get correct download speed values
             downloadHandler.onDownloadFinish();
         } catch (Exception e) {
+            System.err.println("An error occurred.");
             e.printStackTrace();
             downloadHandler.onDownloadError();
         }
@@ -256,7 +252,9 @@ public class Downloader {
                 con = (HttpURLConnection) url.openConnection();
             }
 
-            con.addRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
+            if (bUseCustomUserAgentString) {
+                con.addRequestProperty("User-Agent", customUserAgentString);
+            }
             con.connect();
             downloadLength = con.getContentLength();
 
@@ -270,8 +268,8 @@ public class Downloader {
             br.close();
             return sb.toString();
         } catch (UnknownHostException e) {
+            System.err.println("No Internet available");
             e.printStackTrace();
-            System.out.println("No Internet");
         } catch (Exception e) {
             e.printStackTrace();
             downloadHandler.onDownloadError();
@@ -303,6 +301,7 @@ public class Downloader {
             downloadHandler.onDownloadFinish();
             return in.readObject();
         } catch (Exception e) {
+            System.err.println("An error occurred.");
             e.printStackTrace();
             downloadHandler.onDownloadError();
         }
