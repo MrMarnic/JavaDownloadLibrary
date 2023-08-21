@@ -121,7 +121,7 @@ public class Downloader {
         return connection;
     }
 
-    public String getServerFileName(String urlStr) throws UnsupportedEncodingException {
+    public String getServerFileName(String urlStr) {
         HttpURLConnection con = null;
         try {
             URL url = new URL(urlStr);
@@ -136,17 +136,30 @@ public class Downloader {
             con.connect();
 
             if (con.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                return "Server returned HTTP " + con.getResponseCode() + " " + con.getResponseMessage();
+                System.err.println("Server returned HTTP " + con.getResponseCode() + " " + con.getResponseMessage());
+                return "error";
             }
         } catch (Exception e) {
             System.err.println("An error occurred.");
-            return e.toString();
+            return "error";
         } finally {
             if (con != null) con.disconnect();
         }
 
-        String decodedURL = URLDecoder.decode(con.getURL().toString(), String.valueOf(StandardCharsets.UTF_8)); // for Chinese characters
-        return new File(decodedURL).getName();
+        String filename;
+        try {
+            if (con.getHeaderField("Content-Disposition") != null) {
+                filename = con.getHeaderField("Content-Disposition").replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1");
+            } else {
+                filename = Paths.get(new URI(con.getURL().toString()).getPath()).getFileName().toString();
+            }
+            return filename;
+        }
+        catch (Exception e) {
+            System.err.println("An error occurred.");
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public void setbIsCancelled(boolean bIsCancelled) {
